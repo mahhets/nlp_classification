@@ -1,7 +1,11 @@
 import re
-import nltk
 import pymorphy2
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import itertools
 
+from collections import Counter
 from nltk.corpus import stopwords
 from sklearn.base import BaseEstimator, TransformerMixin
 from razdel import tokenize
@@ -22,6 +26,24 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         return x[[self.column]]
 
 
+def add_stop_words(dataframe: pd.DataFrame,
+                   k_words: int) -> list:
+    """
+    Получить список стоп-слов, которые наиболее часто встречаются в документе
+    :param dataframe:
+    :param k_words: кол-во наиболее часто повторяющихся уникальных слов
+    :return:
+    """
+
+    split_words = dataframe['text'].values
+    split_words = " ".join(split_words)
+    split_words = split_words.split()
+    _counter = Counter(split_words).most_common(k_words)
+    n_words = [i[0] for i in _counter]
+
+    return list(set(n_words))
+
+
 class Cleaner(BaseEstimator, TransformerMixin):
 
     def __init__(self, column):
@@ -37,10 +59,10 @@ class Cleaner(BaseEstimator, TransformerMixin):
         if not isinstance(text, str):
             text = str(text)
 
-        text = text.lower()  # делаем все буквы маленькими
-        text = text.strip('\n').strip('\r').strip('\t')  # удаляет начальные и конечные символы в строке
+        text = text.lower()
+        text = text.strip('\n').strip('\r').strip('\t')
         text = re.sub("-", ' ', str(text))
-        text = re.sub("-\s\r\n\|-\s\r\n|\r\n", '', str(text))  # re.sub ищет шаблон в подстроке и заменяет его на строку
+        text = re.sub("-\s\r\n\|-\s\r\n|\r\n", '', str(text))
         text = re.sub("[0-9]|[-—.,:;_%©«»?*!@#№$^•·&()]|[+=]|[[]|[]]|[/]|", '', text)
         text = re.sub(r"\r\n\t|\n|\\s|\r\t|\\n", ' ', text)
         text = re.sub(r'[\xad]|[\s+]', ' ', text.strip())
@@ -62,11 +84,12 @@ class Cleaner(BaseEstimator, TransformerMixin):
 
 class Lemmatizer(BaseEstimator, TransformerMixin):
 
-    def __init__(self, column):
+    def __init__(self, column, words_to_add):
         self.column = column
         self.cache = {}
         self.morph = pymorphy2.MorphAnalyzer()
         self.stopword_ru = stopwords.words('russian')
+        self.words_to_add = words_to_add
 
     def lemmatization(self, text):
         """
@@ -92,7 +115,8 @@ class Lemmatizer(BaseEstimator, TransformerMixin):
                     temp_cache = self.cache[w] = self.morph.parse(w)[0].normal_form
                     words_lem.append(temp_cache)
 
-        words_lem_without_stopwords = [i for i in words_lem if not i in self.stopword_ru]
+        stopwords_ru = list(set(self.stopword_ru + self.words_to_add))
+        words_lem_without_stopwords = [i for i in words_lem if i not in stopwords_ru]
 
         return ' '.join(list(words_lem_without_stopwords))
 
@@ -145,3 +169,38 @@ def get_cloud(corpus):
                            random_state=42
                            ).generate(str_corpus(corpus))
     return word_cloud
+
+
+def plot_confusion_matrix(cm, classes,
+                          normalize=False,
+                          title='Confusion matrix',
+                          cmap=plt.cm.Blues):
+    """
+    Возвращает plot матрицы ошибок
+    """
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    print(cm)
+
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, cm[i, j],
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+
+    return plt.show()
