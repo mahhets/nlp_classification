@@ -5,6 +5,7 @@ import pymorphy2
 from nltk.corpus import stopwords
 from sklearn.base import BaseEstimator, TransformerMixin
 from razdel import tokenize
+from wordcloud import WordCloud
 
 
 class FeatureSelector(BaseEstimator, TransformerMixin):
@@ -101,3 +102,46 @@ class Lemmatizer(BaseEstimator, TransformerMixin):
     def transform(self, x, y=None):
         x[self.column] = x[self.column].apply(lambda q: self.lemmatization(q), 1)
         return x[self.column].values.astype('U')
+
+
+def get_corpus(data):
+    """
+    Получение списка всех слов в корпусе
+    :param data: Данные
+    :return: список слов в корпусе
+    """
+    corpus = []
+    for phrase in data:
+        for word in phrase.split():
+            corpus.append(word)
+    return corpus
+
+
+def str_corpus(corpus):
+    """
+    Получение текстовой строки из списка слов
+    :param corpus: список слов
+    :return: строка из списка слов в корпусе
+    """
+    _corpus = ''
+    for i in corpus:
+        _corpus += ' ' + i
+    _corpus = _corpus.strip()
+    return _corpus
+
+
+def get_cloud(corpus):
+    """
+    Получение облака слов
+    :param corpus: корпус слов из метода get_corpus
+    :return: Облако слов
+    """
+    stopwords_ru = stopwords.words('russian')
+    word_cloud = WordCloud(background_color='white',
+                           stopwords=stopwords_ru,
+                           width=3000,
+                           height=2500,
+                           max_words=200,
+                           random_state=42
+                           ).generate(str_corpus(corpus))
+    return word_cloud
