@@ -128,7 +128,7 @@ class Lemmatizer(BaseEstimator, TransformerMixin):
         return x[self.column].values.astype('U')
 
 
-def get_corpus(data):
+def get_corpus(data: list) -> list:
     """
     Получение списка всех слов в корпусе
     :param data: Данные
@@ -141,7 +141,7 @@ def get_corpus(data):
     return corpus
 
 
-def str_corpus(corpus):
+def str_corpus(corpus: list) -> str:
     """
     Получение текстовой строки из списка слов
     :param corpus: список слов
