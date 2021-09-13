@@ -14,7 +14,6 @@ model_path = os.getenv(EnvironmentReference.SAVE_MODEL_PATH)
 with open(f'{model_path}MNB_model.pkl', 'rb') as f:
     model = pickle.load(f)
 
-
 app = Flask(__name__)
 
 
@@ -28,10 +27,10 @@ def general():
     """
     return welcome
 
+
 @app.route('/predict', methods=['GET'])
 def predict():
     text = str(request.args.get('text', ''))
-    print(text)
     try:
         if not text:
             raise KeyError('Parameter "text" is required')
@@ -40,8 +39,9 @@ def predict():
         }
 
         temp_df = pd.DataFrame(data)
-        predict = model.predict(temp_df)[0]
-        if predict == 0:
+        _predict = model.predict_proba(temp_df)[0][1]
+        # Найденный порог для классификации
+        if _predict < 0.442:
             return jsonify({"Chat": 'Python'}), 200
         else:
             return jsonify({"Chat": 'DS'}), 200
